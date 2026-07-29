@@ -25,6 +25,7 @@ public class Config {
     }
 
     public GuiCustom getGUI(String name) {
-        return this.guis.get(name).getCurrentGUI();
+        GuiEntry entry = this.guis.get(name);
+        return entry == null ? null : entry.getCurrentGUI();
     }
 }

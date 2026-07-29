@@ -18,6 +18,7 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import lumien.custommainmenu.configuration.Config;
 import lumien.custommainmenu.configuration.ConfigurationLoader;
 import lumien.custommainmenu.handler.CMMEventHandler;
+import lumien.custommainmenu.handler.DimensionTracker;
 
 @Mod(modid = CustomMainMenu.MOD_ID, name = CustomMainMenu.MOD_NAME, version = Tags.VERSION)
 public class CustomMainMenu {
@@ -48,6 +49,10 @@ public class CustomMainMenu {
         MinecraftForge.EVENT_BUS.register(EVENT_HANDLER);
         FMLCommonHandler.instance().bus().register(EVENT_HANDLER);
         this.logger = event.getModLog();
+        if (FMLCommonHandler.instance().getSide().isClient()) {
+            DimensionTracker.INSTANCE.init(this.configFolder);
+            MinecraftForge.EVENT_BUS.register(DimensionTracker.INSTANCE);
+        }
         this.configLoader = new ConfigurationLoader(this.config);
         try {
             this.configLoader.load();

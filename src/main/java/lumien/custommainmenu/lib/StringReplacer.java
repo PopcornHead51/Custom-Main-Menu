@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.ForgeVersion;
 
 import cpw.mods.fml.common.Loader;
+import lumien.custommainmenu.handler.DimensionTracker;
 
 public class StringReplacer {
 
@@ -23,6 +24,11 @@ public class StringReplacer {
     public static String replacePlaceholders(String source) {
         int tModCount = Loader.instance().getModList().size();
         int aModCount = Loader.instance().getActiveModList().size();
+        DimensionInfo lastDimension = DimensionTracker.getLastDimension();
+        source = source
+                .replace("#dimension#", lastDimension == null ? "" : Integer.toString(lastDimension.getDimensionId()))
+                .replace("#dimensionname#", lastDimension == null ? "" : lastDimension.getDimensionName())
+                .replace("#worldname#", lastDimension == null ? "" : lastDimension.getWorldName());
         return source.replace("#mcversion#", "1.7.10").replace("#fmlversion#", Loader.instance().getFMLVersionString())
                 .replace("#mcpversion#", mcpversion).replace("#modsloaded#", Integer.toString(tModCount))
                 .replace("#modsactive#", Integer.toString(aModCount)).replace("#forgeversion#", forgeVersion)

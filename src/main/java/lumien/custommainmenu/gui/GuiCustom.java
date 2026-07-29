@@ -182,11 +182,11 @@ public class GuiCustom extends GuiScreen implements GuiYesNoCallback {
         Panorama panorama = this.guiConfig.panorama;
         Tessellator worldrenderer = Tessellator.instance;
         if (panorama != null) {
-            this.titlePanoramaPaths = panorama.locations;
+            this.titlePanoramaPaths = panorama.getLocations();
             GlStateManager.disableAlpha();
             this.renderSkybox(mouseX, mouseY, partialTicks);
             GlStateManager.enableAlpha();
-            if (panorama.gradient) {
+            if (panorama.drawGradient()) {
                 this.drawGradientRect(0, 0, this.width, this.height, -2130706433, 16777215);
                 this.drawGradientRect(0, 0, this.width, this.height, 0, Integer.MIN_VALUE);
             }

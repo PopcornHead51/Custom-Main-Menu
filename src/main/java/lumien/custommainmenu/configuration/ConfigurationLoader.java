@@ -1,13 +1,13 @@
 package lumien.custommainmenu.configuration;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.Level;
 
 import com.google.common.io.ByteStreams;
 import com.google.gson.JsonElement;
@@ -49,32 +49,23 @@ public class ConfigurationLoader {
             IOUtils.closeQuietly(input);
         }
         for (File guiFile : configFolder.listFiles()) {
-            if (!guiFile.getName().endsWith(".json")) continue;
+            if (guiFile.isDirectory() || !guiFile.getName().endsWith(".json")) continue;
             GuiConfig guiConfig = new GuiConfig();
             String name = guiFile.getName().replace(".json", "");
             JsonReader reader = null;
             try {
                 reader = new JsonReader(new FileReader(guiFile));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            try {
                 JsonElement jsonElement = jsonParser.parse(reader);
                 JsonObject jsonObject = jsonElement.getAsJsonObject();
                 guiConfig.load(name, jsonObject);
             } catch (Exception e) {
-                try {
-                    reader.close();
-                    throw e;
-                } catch (IOException io) {
-                    io.printStackTrace();
-                }
-                throw e;
-            }
-            try {
-                reader.close();
-            } catch (IOException io) {
-                io.printStackTrace();
+                // A single broken file used to take the whole game down during preInit. Log which one it was and carry
+                // on with the rest, the worst case is that the vanilla menu shows up.
+                CustomMainMenu.INSTANCE.logger
+                        .log(Level.ERROR, "Couldn't read " + guiFile.getName() + ", skipping it.", e);
+                continue;
+            } finally {
+                IOUtils.closeQuietly(reader);
             }
             this.config.addGui(guiConfig.name, new GuiCustom(guiConfig));
         }

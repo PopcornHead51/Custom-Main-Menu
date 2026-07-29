@@ -2,6 +2,7 @@ package lumien.custommainmenu.configuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -77,10 +78,18 @@ public class GuiConfig {
         this.splashText = null;
         this.panorama = null;
         this.background = null;
-        this.loadButtons(jsonObject);
-        this.loadTexts(jsonObject);
-        this.loadImages(jsonObject);
-        this.loadOthers(jsonObject);
+        if (jsonObject.has("buttons")) {
+            this.loadButtons(jsonObject);
+        }
+        if (jsonObject.has("texts")) {
+            this.loadTexts(jsonObject);
+        }
+        if (jsonObject.has("images")) {
+            this.loadImages(jsonObject);
+        }
+        if (jsonObject.has("other")) {
+            this.loadOthers(jsonObject);
+        }
     }
 
     private void loadAlignments(JsonObject jsonObject) {
@@ -155,9 +164,15 @@ public class GuiConfig {
         if ((panoramaObject = (JsonObject) other.get("panorama")) != null) {
             this.panorama = new Panorama(
                     this,
-                    this.getStringPlease(panoramaObject.get("images")),
-                    panoramaObject.get("blur").getAsBoolean(),
-                    panoramaObject.get("gradient").getAsBoolean());
+                    GuiConfig.getPanoramaSets(panoramaObject.get("images"), null),
+                    panoramaObject.has("blur") && panoramaObject.get("blur").getAsBoolean(),
+                    panoramaObject.has("gradient") && panoramaObject.get("gradient").getAsBoolean());
+            if (panoramaObject.has("random")) {
+                this.panorama.setRandom(panoramaObject.get("random").getAsBoolean());
+            }
+            if (panoramaObject.has("dimensions")) {
+                this.loadPanoramaDimensions(panoramaObject.get("dimensions").getAsJsonObject());
+            }
             if (panoramaObject.has("animate")) {
                 this.panorama.setAnimate(panoramaObject.get("animate").getAsBoolean());
             }
@@ -363,6 +378,77 @@ public class GuiConfig {
             text.hoverSound = this.getStringPlease(jsonObject.get("hoverSound"));
         }
         return text;
+    }
+
+    /**
+     * Reads the per dimension panorama overrides. Keys are dimension ids, values are either a single image pattern, an
+     * array of patterns to pick from, or an object with "images" and optional "random" / "gradient" flags.
+     */
+    private void loadPanoramaDimensions(JsonObject dimensionObject) {
+        for (Map.Entry<String, JsonElement> entry : dimensionObject.entrySet()) {
+            int dimensionId;
+            try {
+                dimensionId = Integer.parseInt(entry.getKey().trim());
+            } catch (NumberFormatException e) {
+                CustomMainMenu.INSTANCE.logger.log(
+                        Level.ERROR,
+                        "Panorama dimension keys have to be dimension ids, ignoring \"" + entry.getKey() + "\"");
+                continue;
+            }
+            JsonElement value = entry.getValue();
+            Boolean random = null;
+            if (value.isJsonObject() && value.getAsJsonObject().has("random")) {
+                random = value.getAsJsonObject().get("random").getAsBoolean();
+            }
+            List<Panorama.PanoramaSet> sets = GuiConfig.getPanoramaSets(value, null);
+            if (sets.isEmpty()) {
+                CustomMainMenu.INSTANCE.logger
+                        .log(Level.ERROR, "No panorama images given for dimension " + dimensionId);
+                continue;
+            }
+            this.panorama.addDimensionSet(dimensionId, sets, random);
+        }
+    }
+
+    /**
+     * Turns whatever form a panorama entry takes into a flat list of selectable sets. Accepts a single string, an array
+     * mixing strings and objects, or an object holding "image"/"images" plus settings that belong to those images
+     * specifically. Settings on an object are inherited by everything nested inside it unless overridden again.
+     * <p>
+     * Unlike getStringPlease this keeps every entry, so the choice can be made again later instead of being frozen at
+     * load time.
+     *
+     * @param gradient the gradient setting inherited from the enclosing object, null to fall back to the panorama wide
+     *                 one.
+     */
+    private static List<Panorama.PanoramaSet> getPanoramaSets(JsonElement jsonElement, Boolean gradient) {
+        ArrayList<Panorama.PanoramaSet> list = new ArrayList<>();
+        if (jsonElement == null) {
+            return list;
+        }
+        if (jsonElement.isJsonPrimitive()) {
+            list.add(new Panorama.PanoramaSet(jsonElement.getAsString(), gradient));
+            return list;
+        }
+        if (jsonElement.isJsonArray()) {
+            for (JsonElement element : jsonElement.getAsJsonArray()) {
+                list.addAll(GuiConfig.getPanoramaSets(element, gradient));
+            }
+            return list;
+        }
+        if (jsonElement.isJsonObject()) {
+            JsonObject object = jsonElement.getAsJsonObject();
+            Boolean ownGradient = object.has("gradient") ? object.get("gradient").getAsBoolean() : gradient;
+            JsonElement images = object.has("images") ? object.get("images") : object.get("image");
+            if (images == null) {
+                CustomMainMenu.INSTANCE.logger
+                        .log(Level.ERROR, "Panorama entries need an \"image\" or \"images\" property: " + jsonElement);
+                return list;
+            }
+            return GuiConfig.getPanoramaSets(images, ownGradient);
+        }
+        CustomMainMenu.INSTANCE.logger.log(Level.ERROR, "Can't read panorama images out of " + jsonElement);
+        return list;
     }
 
     private String getStringPlease(JsonElement jsonElement) {

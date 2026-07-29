@@ -17,6 +17,7 @@ import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import lumien.custommainmenu.CustomMainMenu;
+import lumien.custommainmenu.configuration.elements.Panorama;
 import lumien.custommainmenu.gui.GuiCustom;
 import lumien.custommainmenu.gui.GuiCustomButton;
 import lumien.custommainmenu.gui.GuiCustomWrappedButton;
@@ -42,14 +43,35 @@ public class CMMEventHandler {
         if (event.gui instanceof GuiMainMenu) {
             GuiCustom customMainMenu = CustomMainMenu.INSTANCE.config.getGUI("mainmenu");
             if (customMainMenu != null) {
+                CMMEventHandler.refreshPanorama(customMainMenu);
                 event.gui = customMainMenu;
             }
         } else if (event.gui instanceof GuiCustom custom) {
             GuiCustom target = CustomMainMenu.INSTANCE.config.getGUI(custom.guiConfig.name);
-            if (target != custom) {
+            CMMEventHandler.refreshPanorama(target == null ? custom : target);
+            if (target != null && target != custom) {
                 event.gui = target;
             }
         }
+    }
+
+    /**
+     * Picks the panorama for the dimension the player was last in, and rolls a new random set if several are
+     * configured. Done here rather than in initGui so that resizing the window doesn't change the panorama.
+     */
+    private static void refreshPanorama(GuiCustom gui) {
+        if (gui == null || gui.guiConfig.panorama == null) {
+            return;
+        }
+        Panorama panorama = gui.guiConfig.panorama;
+        if (panorama.synced && !gui.guiConfig.name.equals("mainmenu")) {
+            GuiCustom mainMenu = CustomMainMenu.INSTANCE.config.getGUI("mainmenu");
+            if (mainMenu != null && mainMenu != gui && mainMenu.guiConfig.panorama != null) {
+                panorama.copyFrom(mainMenu.guiConfig.panorama);
+                return;
+            }
+        }
+        panorama.reroll();
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
